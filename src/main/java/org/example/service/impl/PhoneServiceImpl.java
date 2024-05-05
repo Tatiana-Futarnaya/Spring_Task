@@ -1,67 +1,90 @@
 package org.example.service.impl;
 
 import org.example.exception.NotFoundException;
+import org.example.model.Employee;
 import org.example.model.Phone;
+import org.example.repository.EmployeeRepository;
 import org.example.repository.PhoneRepository;
-import org.example.repository.impl.PhoneRepositoryImpl;
 import org.example.service.PhoneService;
 import org.example.servlet.dto.PhoneIncomingDto;
 import org.example.servlet.dto.PhoneOutGoingDto;
 import org.example.servlet.dto.PhoneUpdateDto;
 import org.example.servlet.mapper.PhoneDtoMapper;
-import org.example.servlet.mapper.impl.PhoneDtoMapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Service
 public class PhoneServiceImpl implements PhoneService {
-    private final PhoneDtoMapper phoneNumberDtoMapper = PhoneDtoMapperImpl.getInstance();
-    private final PhoneRepository phoneNumberRepository = PhoneRepositoryImpl.getInstance();
-    private static PhoneService instance;
+    private final PhoneDtoMapper phoneNumberDtoMapper;
+    private final PhoneRepository phoneNumberRepository;
+    private final EmployeeRepository employeeRepository;
 
 
-    private PhoneServiceImpl() {
-    }
-
-    public static synchronized PhoneService getInstance() {
-        if (instance == null) {
-            instance = new PhoneServiceImpl();
-        }
-        return instance;
+@Autowired
+    public PhoneServiceImpl(PhoneDtoMapper phoneNumberDtoMapper, PhoneRepository phoneNumberRepository, EmployeeRepository employeeRepository) {
+        this.phoneNumberDtoMapper = phoneNumberDtoMapper;
+        this.phoneNumberRepository = phoneNumberRepository;
+        this.employeeRepository=employeeRepository;
     }
 
     @Override
-    public PhoneOutGoingDto save(PhoneIncomingDto phoneNumberDto) {
-        Phone phoneNumber = phoneNumberDtoMapper.map(phoneNumberDto);
-        phoneNumber = phoneNumberRepository.save(phoneNumber);
-        return phoneNumberDtoMapper.map(phoneNumber);
+    public PhoneOutGoingDto save(PhoneIncomingDto phoneNumberDto, long phoneId) {
+        Employee employee = employeeRepository.findById(phoneId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book Not Found")
+        );
+
+
+        Phone phone = phoneNumberDtoMapper.map(phoneNumberDto);
+        phone.setEmployee(employee);
+
+
+        phone = phoneNumberRepository.save(phone);
+        return phoneNumberDtoMapper.map(phone);
     }
 
     @Override
     public void update(PhoneUpdateDto phoneNumberUpdateDto) throws NotFoundException {
-        if (phoneNumberRepository.exitsById(phoneNumberUpdateDto.getId())) {
-            Phone phoneNumber = phoneNumberDtoMapper.map(phoneNumberUpdateDto);
-            phoneNumberRepository.update(phoneNumber);
-        } else {
-            throw new NotFoundException("Phone not found.");
-        }
+        Phone phone=phoneNumberDtoMapper.map(phoneNumberUpdateDto);
+
+        Phone oldPhone=phoneNumberRepository.findById(phone.getId()).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phone Not Found"));
+
+        //phoneNumberRepository.update(phone.getId(),phone.getNumber(),phone.getEmployee().getId());
+
+       phone.setEmployee(oldPhone.getEmployee());
+        phoneNumberRepository.save(phone);
+
+      phoneNumberDtoMapper.map(phone);
     }
 
     @Override
     public PhoneOutGoingDto findById(Long phoneNumberId) throws NotFoundException {
         Phone phoneNumber = phoneNumberRepository.findById(phoneNumberId).orElseThrow(() ->
-                new NotFoundException("Phone not found."));
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Phone Not Found"));
         return phoneNumberDtoMapper.map(phoneNumber);
     }
 
     @Override
     public List<PhoneOutGoingDto> findAll() {
-        List<Phone> phoneNumberList = phoneNumberRepository.findAll();
-        return phoneNumberDtoMapper.map(phoneNumberList);
+        List<Phone> phones = phoneNumberRepository.findAll();
+
+        return phones.stream()
+                .map(phone -> phoneNumberDtoMapper.map(phone))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public boolean delete(Long phoneNumberId) {
-        return phoneNumberRepository.deleteById(phoneNumberId);
+    public void delete(Long phoneNumberId) {
+        phoneNumberRepository.findById(phoneNumberId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phone Not Found"));
+        phoneNumberRepository.deleteById(phoneNumberId);
     }
+
+
 
 }

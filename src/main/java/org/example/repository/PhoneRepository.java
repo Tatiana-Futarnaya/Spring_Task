@@ -1,16 +1,19 @@
 package org.example.repository;
 
 import org.example.model.Phone;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface PhoneRepository extends Repository<Phone, Long> {
-    List<Phone> findAllByEmployeeId(Long employeeId);
+@Repository
+public interface PhoneRepository extends JpaRepository<Phone, Long> {
 
-    boolean deleteByEmployeeId(Long employeeId);
+    List<Phone> findAllByEmployeeId(Long employee_id);
 
-    boolean existsByNumber(String number);
-
-    Optional<Phone> findByNumber(String number);
 }

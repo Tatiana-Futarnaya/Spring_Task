@@ -4,6 +4,8 @@ import org.example.exception.NotFoundException;
 import org.example.servlet.dto.DepartmentIncomingDto;
 import org.example.servlet.dto.DepartmentOutGoingDto;
 import org.example.servlet.dto.DepartmentUpdateDto;
+import org.example.servlet.dto.PositionUpdateDto;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -18,9 +20,6 @@ public interface DepartmentService {
 
     void delete(Long departmentId) throws NotFoundException;
 
-    void deleteEmployeeFromDepartment(Long departmentId, Long employeeId) throws NotFoundException;
-
-    void addEmployeeToDepartment(Long departmentId, Long employeeId) throws NotFoundException;
 
 
 }

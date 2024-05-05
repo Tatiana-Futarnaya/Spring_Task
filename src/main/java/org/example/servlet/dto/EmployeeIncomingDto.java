@@ -5,7 +5,6 @@ import org.example.model.Position;
 public class EmployeeIncomingDto {
     private String firstName;
     private String lastName;
-
     private Position position;
 
     public EmployeeIncomingDto() {
@@ -28,6 +27,19 @@ public class EmployeeIncomingDto {
     public Position getPosition() {
         return position;
     }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setPosition(Position position) {
+        this.position = position;
+    }
+
 
 }
 

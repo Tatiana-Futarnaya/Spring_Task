@@ -4,6 +4,7 @@ import org.example.exception.NotFoundException;
 import org.example.servlet.dto.PositionIncomingDto;
 import org.example.servlet.dto.PositionOutGoingDto;
 import org.example.servlet.dto.PositionUpdateDto;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -16,5 +17,5 @@ public interface PositionService {
 
     List<PositionOutGoingDto> findAll();
 
-    boolean delete(Long positionId) throws NotFoundException;
+    void delete(Long positionId) throws NotFoundException;
 }

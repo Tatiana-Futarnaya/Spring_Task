@@ -1,27 +1,33 @@
 package org.example.servlet.mapper.impl;
 
 import org.example.model.Department;
-
 import org.example.model.Employee;
 import org.example.model.Phone;
 import org.example.model.Position;
 import org.example.servlet.dto.*;
-
-import org.example.servlet.mapper.EmployeeDtoMapper;
+import org.example.servlet.mapper.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+
 class EmployeeDtoMapperImplTest {
+    private  DepartmentDtoMapper departmentDtoMapper;
+    private  PhoneDtoMapper phoneDtoMapper;
+
     private EmployeeDtoMapper employeeDtoMapper;
 
     @BeforeEach
     void setUp() {
-        employeeDtoMapper = EmployeeDtoMapperImpl.getInstance();
+        departmentDtoMapper=new DepartmentDtoMapperImpl();
+        phoneDtoMapper=new PhoneDtoMapperImpl();
+        employeeDtoMapper =new EmployeeDtoMapperImpl(departmentDtoMapper,phoneDtoMapper);
     }
 
     @DisplayName("Employee map(EmployeeIncomingDto")

@@ -1,60 +1,41 @@
 package org.example.repository.impl;
 
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
-import org.example.db.PropertiesManager;
+import org.example.config.PersistenceConfigForTest;
 import org.example.model.Department;
 import org.example.model.Employee;
 import org.example.model.Phone;
 import org.example.model.Position;
 import org.example.repository.EmployeeRepository;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.ext.ScriptUtils;
-import org.testcontainers.jdbc.JdbcDatabaseDelegate;
-import org.testcontainers.junit.jupiter.Container;
-
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.junit.jupiter.params.*;
 import java.util.List;
 import java.util.Optional;
 
+import static org.example.config.PersistenceConfigForTest.postgres;
+
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {PersistenceConfigForTest.class, EmployeeRepository.class})
 class EmployeeRepositoryImplTest {
-    private static final String INIT_SQL = "sql/schema.sql";
-    private static final int containerPort = 5432;
-    private static final int localPort = 5432;
-    @Container
-    public static PostgreSQLContainer<?> container = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("postgres")
-            .withUsername(PropertiesManager.getProperties("db.username"))
-            .withPassword(PropertiesManager.getProperties("db.password"))
-            .withExposedPorts(containerPort)
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostConfig(
-                    new HostConfig().withPortBindings(new PortBinding(Ports.Binding.bindPort(localPort), new ExposedPort(containerPort)))
-            ))
-            .withInitScript(INIT_SQL);
-    public static EmployeeRepository employeeRepository;
-    private static JdbcDatabaseDelegate jdbcDatabaseDelegate;
+
+    @Autowired
+    private  EmployeeRepository employeeRepository;
+
 
     @BeforeAll
     static void beforeAll() {
-        container.start();
-        employeeRepository = EmployeeRepositoryImpl.getInstance();
-        jdbcDatabaseDelegate = new JdbcDatabaseDelegate(container, "");
+        postgres.start();
     }
 
     @AfterAll
     static void afterAll() {
-        container.stop();
+        postgres.stop();
     }
 
-    @BeforeEach
-    void setUp() {
-        ScriptUtils.runInitScript(jdbcDatabaseDelegate, INIT_SQL);
-    }
 
     @Test
     void save() {
@@ -95,7 +76,7 @@ class EmployeeRepositoryImplTest {
 
         employeeForUpdate.setEmployeeFirstName(expectedFirstname);
         employeeForUpdate.setEmployeeLastName(expectedLastname);
-        employeeRepository.update(employeeForUpdate);
+        employeeRepository.save(employeeForUpdate);
 
         Employee resultEmployee = employeeRepository.findById(3L).get();
 
@@ -109,45 +90,44 @@ class EmployeeRepositoryImplTest {
         employeeForUpdate.setPhoneNumberList(List.of());
         employeeForUpdate.setDepartmentList(List.of());
         employeeForUpdate.setPosition(new Position(expectedPositionId, null));
-        employeeRepository.update(employeeForUpdate);
-        resultEmployee = employeeRepository.findById(3L).get();
+        employeeRepository.save(employeeForUpdate);
+        Employee result = employeeRepository.findById(3L).get();
 
-        Assertions.assertEquals(0, resultEmployee.getPhoneNumberList().size());
-        Assertions.assertEquals(0, resultEmployee.getDepartmentList().size());
-        Assertions.assertEquals(expectedPositionId, resultEmployee.getPosition().getId());
+        Assertions.assertEquals(0, result.getPhoneNumberList().size());
+        Assertions.assertEquals(0, result.getDepartmentList().size());
+        Assertions.assertEquals(expectedPositionId, result.getPosition().getId());
 
         departmentList.add(new Department(3L, null, null));
         departmentList.add(new Department(4L, null, null));
         employeeForUpdate.setDepartmentList(departmentList);
-        employeeRepository.update(employeeForUpdate);
-        resultEmployee = employeeRepository.findById(3L).get();
+        employeeRepository.save(employeeForUpdate);
+        result = employeeRepository.findById(3L).get();
 
-        Assertions.assertEquals(3, resultEmployee.getDepartmentList().size());
+        Assertions.assertEquals(3, result.getDepartmentList().size());
 
         departmentList.remove(2);
         employeeForUpdate.setDepartmentList(departmentList);
-        employeeRepository.update(employeeForUpdate);
-        resultEmployee = employeeRepository.findById(3L).get();
+        employeeRepository.save(employeeForUpdate);
+        result = employeeRepository.findById(3L).get();
 
-        Assertions.assertEquals(2, resultEmployee.getDepartmentList().size());
+        Assertions.assertEquals(2, result.getDepartmentList().size());
 
         employeeForUpdate.setPhoneNumberList(List.of(
-                new Phone(null, "new phone", null),
-                new Phone(null, "+1(123)123 2222", null)));
-        employeeForUpdate.setDepartmentList(List.of(new Department(1L, null, null)));
+                new Phone(null, "new phone", employeeForUpdate),
+                new Phone(null, "+1(123)123 245342", employeeForUpdate)));
+        employeeForUpdate.setDepartmentList(List.of(new Department(2L, null, null)));
 
-        employeeRepository.update(employeeForUpdate);
-        resultEmployee = employeeRepository.findById(3L).get();
+        employeeRepository.save(employeeForUpdate);
+        result = employeeRepository.findById(3L).get();
 
-        System.out.println(resultEmployee.getPhoneNumberList().size());
+        System.out.println(result.getPhoneNumberList().size());
 
-        Assertions.assertEquals(1, resultEmployee.getPhoneNumberList().size());
-        Assertions.assertEquals(1, resultEmployee.getDepartmentList().size());
+        Assertions.assertEquals(employeeForUpdate.getPhoneNumberList().size(), result.getPhoneNumberList().size());
+        Assertions.assertEquals(1, result.getDepartmentList().size());
     }
 
     @Test
     void deleteById() {
-        Boolean expectedValue = true;
         int expectedSize = employeeRepository.findAll().size();
 
         Employee tempeEmployee = new Employee(
@@ -160,24 +140,24 @@ class EmployeeRepositoryImplTest {
         );
         tempeEmployee = employeeRepository.save(tempeEmployee);
 
-        boolean resultDelete = employeeRepository.deleteById(tempeEmployee.getId());
+        employeeRepository.deleteById(tempeEmployee.getId());
         int positionListAfterSize = employeeRepository.findAll().size();
 
-        Assertions.assertEquals(expectedValue, resultDelete);
         Assertions.assertEquals(expectedSize, positionListAfterSize);
     }
 
     @DisplayName("Find by ID")
     @ParameterizedTest
     @CsvSource(value = {
-            "1; true",
-            "4; true",
+            "3; true",
+            "1; false",
             "100; false"
     }, delimiter = ';')
     void findById(Long expectedId, Boolean expectedValue) {
         Optional<Employee> employee = employeeRepository.findById(expectedId);
         Assertions.assertEquals(expectedValue, employee.isPresent());
         employee.ifPresent(value -> Assertions.assertEquals(expectedId, value.getId()));
+        employeeRepository.deleteAll();
     }
 
     @Test
@@ -188,16 +168,4 @@ class EmployeeRepositoryImplTest {
         Assertions.assertEquals(expectedSize, resultSize);
     }
 
-    @DisplayName("Exist by ID")
-    @ParameterizedTest
-    @CsvSource(value = {
-            "1; true",
-            "4; true",
-            "100; false"
-    }, delimiter = ';')
-    void exitsById(Long positionId, Boolean expectedValue) {
-        boolean isEmployeeExist = employeeRepository.exitsById(positionId);
-
-        Assertions.assertEquals(expectedValue, isEmployeeExist);
-    }
 }

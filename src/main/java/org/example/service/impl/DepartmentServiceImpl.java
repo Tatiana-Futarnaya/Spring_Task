@@ -2,45 +2,40 @@ package org.example.service.impl;
 
 import org.example.exception.NotFoundException;
 import org.example.model.Department;
-import org.example.model.EmployeeToDepartment;
+import org.example.model.Employee;
+import org.example.model.Phone;
+import org.example.model.Position;
 import org.example.repository.DepartmentRepository;
 import org.example.repository.EmployeeRepository;
-import org.example.repository.EmployeeToDepartmentRepository;
-import org.example.repository.impl.DepartmentRepositoryImpl;
-import org.example.repository.impl.EmployeeRepositoryImpl;
-import org.example.repository.impl.EmployeeToDepartmentRepositoryImpl;
 import org.example.service.DepartmentService;
-import org.example.servlet.dto.DepartmentIncomingDto;
-import org.example.servlet.dto.DepartmentOutGoingDto;
-import org.example.servlet.dto.DepartmentUpdateDto;
+import org.example.servlet.dto.*;
 import org.example.servlet.mapper.DepartmentDtoMapper;
-import org.example.servlet.mapper.impl.DepartmentDtoMapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+@Service("DepartmentService")
 
 public class DepartmentServiceImpl implements DepartmentService {
-    private final DepartmentRepository departmentRepository = DepartmentRepositoryImpl.getInstance();
-    private final EmployeeRepository employeeRepository = EmployeeRepositoryImpl.getInstance();
-    private final EmployeeToDepartmentRepository employeeToDepartmentRepository = EmployeeToDepartmentRepositoryImpl.getInstance();
-    private static final DepartmentDtoMapper departmentDtoMapper = DepartmentDtoMapperImpl.getInstance();
-    private static DepartmentService instance;
+    private final DepartmentRepository departmentRepository;
+    private final EmployeeRepository employeeRepository ;
+    private final DepartmentDtoMapper departmentDtoMapper;
 
 
-    private DepartmentServiceImpl() {
+@Autowired
+    public DepartmentServiceImpl(DepartmentRepository departmentRepository, EmployeeRepository employeeRepository,
+                                 DepartmentDtoMapper departmentDtoMapper) {
+        this.departmentRepository = departmentRepository;
+        this.employeeRepository = employeeRepository;
+        this.departmentDtoMapper = departmentDtoMapper;
     }
 
-    public static synchronized DepartmentService getInstance() {
-        if (instance == null) {
-            instance = new DepartmentServiceImpl();
-        }
-        return instance;
-    }
 
-    private void checkExistDepartment(Long departmentId) throws NotFoundException {
-        if (!departmentRepository.exitsById(departmentId)) {
-            throw new NotFoundException("Department not found.");
-        }
-    }
 
     @Override
     public DepartmentOutGoingDto save(DepartmentIncomingDto departmentDto) {
@@ -51,59 +46,38 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public void update(DepartmentUpdateDto departmentUpdateDto) throws NotFoundException {
-        checkExistDepartment(departmentUpdateDto.getId());
-        Department department = departmentDtoMapper.map(departmentUpdateDto);
-        departmentRepository.update(department);
+        departmentRepository.findById(departmentUpdateDto.getId()).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department Not Found"));
+        Department department=departmentDtoMapper.map(departmentUpdateDto);
+        departmentRepository.save(department);
+
+        departmentDtoMapper.map(department);
     }
 
     @Override
     public DepartmentOutGoingDto findById(Long departmentId) throws NotFoundException {
-        Department department = departmentRepository.findById(departmentId).orElseThrow(() ->
-                new NotFoundException("Department not found."));
+        Department department = departmentRepository.findById(departmentId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department Not Found"));
+
         return departmentDtoMapper.map(department);
     }
 
     @Override
     public List<DepartmentOutGoingDto> findAll() {
-        List<Department> departmentList = departmentRepository.findAll();
-        return departmentDtoMapper.map(departmentList);
+        List<Department> all = departmentRepository.findAll();
+        return all.stream()
+                .map(department -> departmentDtoMapper.map(department))
+                .collect(Collectors.toList());
     }
 
     @Override
     public void delete(Long departmentId) throws NotFoundException {
-        checkExistDepartment(departmentId);
+        departmentRepository.findById(departmentId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department Not Found"));
         departmentRepository.deleteById(departmentId);
     }
 
-    @Override
-    public void deleteEmployeeFromDepartment(Long departmentId, Long employeeId) throws NotFoundException {
-        checkExistDepartment(departmentId);
-        if (employeeRepository.exitsById(employeeId)) {
-            EmployeeToDepartment employeeToDepartment = employeeToDepartmentRepository.findByEmployeeIdAndDepartmentId(employeeId, departmentId)
-                    .orElseThrow(() -> new NotFoundException("Link many to many Not found."));
 
-            employeeToDepartmentRepository.deleteById(employeeToDepartment.getId());
-        } else {
-            throw new NotFoundException("Employee not found.");
-        }
-
-    }
-
-    @Override
-    public void addEmployeeToDepartment(Long departmentId, Long employeeId) throws NotFoundException {
-        checkExistDepartment(departmentId);
-        if (employeeRepository.exitsById(employeeId)) {
-            EmployeeToDepartment employeeToDepartment = new EmployeeToDepartment(
-                    null,
-                    employeeId,
-                    departmentId
-            );
-            employeeToDepartmentRepository.save(employeeToDepartment);
-        } else {
-            throw new NotFoundException("Employee not found.");
-        }
-
-    }
 
 
 

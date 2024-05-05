@@ -46,5 +46,26 @@ public class EmployeeUpdateDto {
         return departmentList;
     }
 
+
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setPosition(PositionUpdateDto position) {
+        this.position = position;
+    }
+
+    public void setPhoneNumberList(List<PhoneUpdateDto> phoneNumberList) {
+        this.phoneNumberList = phoneNumberList;
+    }
+
+    public void setDepartmentList(List<DepartmentUpdateDto> departmentList) {
+        this.departmentList = departmentList;
+    }
 }
 

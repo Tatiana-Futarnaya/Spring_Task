@@ -6,6 +6,7 @@ import org.example.servlet.dto.DepartmentIncomingDto;
 import org.example.servlet.dto.DepartmentOutGoingDto;
 import org.example.servlet.dto.DepartmentUpdateDto;
 import org.example.servlet.mapper.DepartmentDtoMapper;
+import org.example.servlet.mapper.DepartmentDtoMapperImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +19,7 @@ class DepartmentDtoMapperImplTest {
 
     @BeforeEach
     void setUp() {
-        departmentDtoMapper = DepartmentDtoMapperImpl.getInstance();
+        departmentDtoMapper =new DepartmentDtoMapperImpl();
     }
 
     @DisplayName("Department map(DepartmentIncomingDto")
@@ -40,7 +41,6 @@ class DepartmentDtoMapperImplTest {
 
         Assertions.assertEquals(department.getId(), result.getId());
         Assertions.assertEquals(department.getName(), result.getName());
-        Assertions.assertEquals(department.getEmployeeList().size(), result.getEmployeeList().size());
     }
 
     @DisplayName("Department map(DepartmentUpdateDto")

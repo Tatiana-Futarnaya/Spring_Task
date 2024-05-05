@@ -14,6 +14,10 @@ public class EmployeeSmallOutGoingDto {
         this.lastName = lastName;
     }
 
+    public EmployeeSmallOutGoingDto(Long id) {
+        this.id = id;
+    }
+
     public Long getId() {
         return id;
     }

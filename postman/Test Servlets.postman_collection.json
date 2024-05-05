@@ -499,37 +499,6 @@
 					"response": []
 				},
 				{
-					"name": "Add employee in dep",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "http://localhost:8080/department/1/addEmployee/1",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8080",
-							"path": [
-								"department",
-								"1",
-								"addEmployee",
-								"1"
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "Edit dep name",
 					"request": {
 						"method": "PUT",
@@ -573,28 +542,6 @@
 							"path": [
 								"department",
 								"3"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Delete employee from dep",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:8080/department/2/deleteEmployee/4",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8080",
-							"path": [
-								"department",
-								"2",
-								"deleteEmployee",
-								"4"
 							]
 						}
 					},

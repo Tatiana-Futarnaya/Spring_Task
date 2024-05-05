@@ -1,204 +1,148 @@
 package org.example.servlet;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.example.exception.NotFoundException;
-
+import org.example.model.Employee;
+import org.example.model.Position;
 import org.example.service.EmployeeService;
-import org.example.service.impl.EmployeeServiceImpl;
-import org.example.servlet.dto.EmployeeIncomingDto;
-import org.example.servlet.dto.EmployeeUpdateDto;
+import org.example.servlet.dto.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.Writer;
-import java.lang.reflect.Field;
 
-@ExtendWith(
-        MockitoExtension.class
-)
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(MockitoExtension.class)
 class EmployeeServletTest {
-    private static EmployeeService mockEmployeeService;
+    @Spy
     @InjectMocks
-    private static EmployeeServlet employeeServlet;
-    private static EmployeeServiceImpl oldInstance;
+    private  EmployeeServlet servlet;
     @Mock
-    private HttpServletRequest mockRequest;
+    private EmployeeService employeeService;
     @Mock
-    private HttpServletResponse mockResponse;
+    private MockMvc mvc;
+    private String requestBody;
     @Mock
-    private BufferedReader mockBufferedReader;
+    private Position position;
+    @Mock
+    private EmployeeOutGoingDto employeeOutGoingDto;
+    @Mock
+    private Employee employee;
 
-    private static void setMock(EmployeeService mock) {
-        try {
-            Field instance = EmployeeServiceImpl.class.getDeclaredField("instance");
-            instance.setAccessible(true);
-            oldInstance = (EmployeeServiceImpl) instance.get(instance);
-            instance.set(instance, mock);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
-    @BeforeAll
-    static void beforeAll() {
-        mockEmployeeService = Mockito.mock(EmployeeService.class);
-        setMock(mockEmployeeService);
-        employeeServlet = new EmployeeServlet();
-    }
-
-    @AfterAll
-    static void afterAll() throws Exception {
-        Field instance = EmployeeServiceImpl.class.getDeclaredField("instance");
-        instance.setAccessible(true);
-        instance.set(instance, oldInstance);
-    }
 
     @BeforeEach
-    void setUp() throws IOException {
-        Mockito.doReturn(new PrintWriter(Writer.nullWriter())).when(mockResponse).getWriter();
+    void setUp() {
+
+        mvc = MockMvcBuilders
+                .standaloneSetup(servlet)
+                .build();
+
+        PositionUpdateDto positionUpdateDto=new PositionUpdateDto(4L,"Admin");
+
+        position=new Position(4L,"Администратор");
+
+        employee=new Employee(1L, "New firstName", "New LastName",
+                position , List.of(),List.of());
+        PositionOutGoingDto position=new PositionOutGoingDto(4L,"Admin");
+        employeeOutGoingDto=new EmployeeOutGoingDto(1L, "New firstName", "New LastName",
+                position , List.of(),List.of() );
+
+        requestBody = "{\"id\":1,\"firstName\":\"New firstName\",\"lastName\":\"New LastName\"," +
+                "\"position\":{\"id\":4,\"name\":\"Admin\"},\"phoneNumberList\":[],\"departmentList\":[]}";
     }
 
-    @AfterEach
-    void tearDown() {
-        Mockito.reset(mockEmployeeService);
+
+    @Test
+    void doGetAll() throws Exception {
+        requestBody = "[" + requestBody + "]";
+        List<EmployeeOutGoingDto> list=List.of(employeeOutGoingDto);
+        Mockito.when(employeeService.findAll()).thenReturn(list);
+
+        String response = mvc.perform(MockMvcRequestBuilders.get("/employee/all")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals(requestBody, response);
     }
 
     @Test
-    void doGetAll() throws IOException {
-        Mockito.doReturn("employee/all").when(mockRequest).getPathInfo();
+    void doGetEmployeeById() throws Exception {
+        Mockito.when(employeeService.findById(employee.getId())).thenReturn(employeeOutGoingDto);
 
-        employeeServlet.doGet(mockRequest, mockResponse);
+        String response = mvc.perform(MockMvcRequestBuilders.get("/employee/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertEquals(requestBody, response);
 
-        Mockito.verify(mockEmployeeService).findAll();
+    }
+
+
+    @Test
+    void doPost() throws Exception {
+
+        Mockito.when(employeeService.save(Mockito.any(EmployeeIncomingDto.class))).thenReturn(employeeOutGoingDto);
+
+        String response = mvc.perform(MockMvcRequestBuilders.post("/employee/")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals(requestBody, response);
     }
 
     @Test
-    void doGetById() throws IOException, NotFoundException {
-        Mockito.doReturn("employee/2").when(mockRequest).getPathInfo();
+    void doPutEmployee() throws Exception {
 
-        employeeServlet.doGet(mockRequest, mockResponse);
+        Mockito.when(employeeService.updateEmployee(Mockito.any(EmployeeUpdateDto.class))).thenReturn(employeeOutGoingDto);
 
-        Mockito.verify(mockEmployeeService).findById(Mockito.anyLong());
+        ObjectMapper objectMapper = new ObjectMapper();
+        requestBody = objectMapper.writeValueAsString(employeeOutGoingDto);
+
+
+        mvc.perform(MockMvcRequestBuilders.put("/employee/1")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
     }
+
 
     @Test
-    void doGetNotFoundException() throws IOException, NotFoundException {
-        Mockito.doReturn("employee/100").when(mockRequest).getPathInfo();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockEmployeeService).findById(100L);
+    void doDeleteEmployee() throws Exception {
 
-        employeeServlet.doGet(mockRequest, mockResponse);
+        Mockito
+                .doNothing()
+                .when(employeeService).delete(1L);
 
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
+        mvc.perform(MockMvcRequestBuilders.delete("/employee/1"))
+                .andExpect(status().isOk());
     }
 
-    @Test
-    void doGetBadRequest() throws IOException {
-        Mockito.doReturn("employee/2q").when(mockRequest).getPathInfo();
 
-        employeeServlet.doGet(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doDelete() throws IOException, NotFoundException {
-        Mockito.doReturn("employee/2").when(mockRequest).getPathInfo();
-
-        employeeServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockEmployeeService).delete(Mockito.anyLong());
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NO_CONTENT);
-    }
-
-    @Test
-    void doDeleteNotFound() throws IOException, NotFoundException {
-        Mockito.doReturn("employee/100").when(mockRequest).getPathInfo();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockEmployeeService).delete(100L);
-
-        employeeServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
-        Mockito.verify(mockEmployeeService).delete(100L);
-    }
-
-    @Test
-    void doDeleteBadRequest() throws IOException {
-        Mockito.doReturn("employee/a100").when(mockRequest).getPathInfo();
-
-        employeeServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doPost() throws IOException {
-        String expectedFirstname = "New first";
-        String expectedLastname = "New last";
-
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn("{\"firstName\":\"" + expectedFirstname + "\"" +
-                         ",\"lastName\":\"" + expectedLastname + "\"" +
-                         ", \"position\":{\"id\":4,\"name\":\"Администратор\"} " +
-                         "}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        employeeServlet.doPost(mockRequest, mockResponse);
-
-        ArgumentCaptor<EmployeeIncomingDto> argumentCaptor = ArgumentCaptor.forClass(EmployeeIncomingDto.class);
-        Mockito.verify(mockEmployeeService).save(argumentCaptor.capture());
-
-        EmployeeIncomingDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedFirstname, result.getFirstName());
-        Assertions.assertEquals(expectedLastname, result.getLastName());
-    }
-
-    @Test
-    void doPut() throws IOException, NotFoundException {
-        String expectedFirstname = "New first";
-        String expectedLastname = "New last";
-
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn("{\"id\": 1," +
-                         "\"firstName\":\"" + expectedFirstname + "\"" +
-                         ",\"lastName\":\"" + expectedLastname + "\"" +
-                         ", \"position\":{\"id\":4}, " +
-                         "\"phoneNumberList\": [{ \"id\": 1,\"number\": \"+1(123)123 1111\"}]," +
-                         "\"departmentList\": [{\"id\": 2}]" +
-                         "}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        employeeServlet.doPut(mockRequest, mockResponse);
-
-        ArgumentCaptor<EmployeeUpdateDto> argumentCaptor = ArgumentCaptor.forClass(EmployeeUpdateDto.class);
-        Mockito.verify(mockEmployeeService).update(argumentCaptor.capture());
-
-        EmployeeUpdateDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedFirstname, result.getFirstName());
-        Assertions.assertEquals(expectedLastname, result.getLastName());
-    }
-
-    @Test
-    void doPutBadRequest() throws IOException {
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{Bad json:1}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        employeeServlet.doPut(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
 
 }

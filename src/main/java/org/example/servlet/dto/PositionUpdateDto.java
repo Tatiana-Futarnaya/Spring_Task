@@ -27,4 +27,5 @@ public class PositionUpdateDto {
     public void setName(String name) {
         this.name = name;
     }
+
 }

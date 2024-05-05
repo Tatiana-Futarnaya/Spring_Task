@@ -1,13 +1,19 @@
 package org.example.model;
 
-import org.example.repository.EmployeeRepository;
-import org.example.repository.impl.EmployeeRepositoryImpl;
+import jakarta.persistence.*;
+import org.hibernate.annotations.Cascade;
 
 
+@Entity
+@Table(name = "phone")
 public class Phone {
-    private static final EmployeeRepository employeeRepository = EmployeeRepositoryImpl.getInstance();
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(nullable = false, length = 1024)
     private String number;
+    @ManyToOne
+    @JoinColumn(name = "employee_id", referencedColumnName = "id")
     private Employee employee;
 
     public Phone() {
@@ -32,12 +38,11 @@ public class Phone {
     }
 
     public Employee getEmployee() {
-        if (employee != null && employee.getId() > 0 && employee.getEmployeeFirstName() == null) {
-            this.employee = employeeRepository.findById(employee.getId()).orElse(employee);
-        } else if (employee != null && employee.getId() == 0) {
-            this.employee = null;
-        }
         return employee;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public void setEmployee(Employee employee) {
@@ -49,7 +54,6 @@ public class Phone {
         return "Phone{" +
                 "id=" + id +
                 ", number='" + number + '\'' +
-                ", employee=" + employee +
                 '}';
     }
 }

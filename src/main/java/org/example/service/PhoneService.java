@@ -4,11 +4,12 @@ import org.example.exception.NotFoundException;
 import org.example.servlet.dto.PhoneIncomingDto;
 import org.example.servlet.dto.PhoneOutGoingDto;
 import org.example.servlet.dto.PhoneUpdateDto;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 public interface PhoneService {
-    PhoneOutGoingDto save(PhoneIncomingDto phoneNumber);
+    PhoneOutGoingDto save(PhoneIncomingDto phoneNumber, long phoneId);
 
     void update(PhoneUpdateDto phoneNumber) throws NotFoundException;
 
@@ -16,5 +17,5 @@ public interface PhoneService {
 
     List<PhoneOutGoingDto> findAll();
 
-    boolean delete(Long phoneNumberId);
+    void delete(Long phoneNumberId);
 }

@@ -1,168 +1,145 @@
 package org.example.servlet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.example.exception.NotFoundException;
+import org.example.model.Employee;
+import org.example.model.Phone;
+import org.example.model.Position;
 import org.example.service.PhoneService;
 import org.example.service.impl.PhoneServiceImpl;
-import org.example.servlet.dto.PhoneIncomingDto;
-import org.example.servlet.dto.PhoneUpdateDto;
+import org.example.servlet.dto.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.testcontainers.shaded.org.hamcrest.Matchers;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-@ExtendWith(
-        MockitoExtension.class
-)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(MockitoExtension.class)
 class PhoneServletTest {
-    private static PhoneService mockPhoneNumberService;
+    @Mock
+    private PhoneService phoneNumberService;
+    @Spy
     @InjectMocks
-    private static PhoneServlet phoneNumberServlet;
-    private static PhoneServiceImpl oldInstance;
+    private  PhoneServlet phoneNumberServlet;
     @Mock
-    private HttpServletRequest mockRequest;
+    private MockMvc mvc;
+    private String requestBody;
     @Mock
-    private HttpServletResponse mockResponse;
+    private PhoneOutGoingDto phoneOutGoingDto;
     @Mock
-    private BufferedReader mockBufferedReader;
+    private EmployeeSmallOutGoingDto employeeSmallOutGoingDto;
+    @Mock
+    private Phone phone;
 
-    private static void setMock(PhoneService mock) {
-        try {
-            Field instance = PhoneServiceImpl.class.getDeclaredField("instance");
-            instance.setAccessible(true);
-            oldInstance = (PhoneServiceImpl) instance.get(instance);
-            instance.set(instance, mock);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @BeforeAll
-    static void beforeAll() {
-        mockPhoneNumberService = Mockito.mock(PhoneService.class);
-        setMock(mockPhoneNumberService);
-        phoneNumberServlet = new PhoneServlet();
-    }
-
-    @AfterAll
-    static void afterAll() throws Exception {
-        Field instance = PhoneServiceImpl.class.getDeclaredField("instance");
-        instance.setAccessible(true);
-        instance.set(instance, oldInstance);
-    }
 
     @BeforeEach
-    void setUp() throws IOException {
-        Mockito.doReturn(new PrintWriter(Writer.nullWriter())).when(mockResponse).getWriter();
-    }
+    void setUp() {
 
-    @AfterEach
-    void tearDown() {
-        Mockito.reset(mockPhoneNumberService);
-    }
-
-    @Test
-    void doGetAll() throws IOException {
-        Mockito.doReturn("phone/all").when(mockRequest).getPathInfo();
-
-        phoneNumberServlet.doGet(mockRequest, mockResponse);
-
-        Mockito.verify(mockPhoneNumberService).findAll();
+        mvc = MockMvcBuilders
+                .standaloneSetup(phoneNumberServlet)
+                .build();
+        Employee employee=new Employee();
+        phone=new Phone(2L, "+7 772227 64 64",employee);
+        employeeSmallOutGoingDto=new EmployeeSmallOutGoingDto();
+        phoneOutGoingDto=new PhoneOutGoingDto(2L,"+7 772227 64 64",employeeSmallOutGoingDto);
+        requestBody = "{\"id\":2,\"number\":\"+7 772227 64 64\",\"employee\":{\"id\":null,\"firstName\":null,\"lastName\":null}}";
     }
 
     @Test
-    void doGetById() throws IOException, NotFoundException {
-        Mockito.doReturn("phone/2").when(mockRequest).getPathInfo();
+    void doGetAll() throws Exception {
+        requestBody = "[" + requestBody + "]";
+        List<PhoneOutGoingDto> list=List.of(phoneOutGoingDto);
+        Mockito.when(phoneNumberService.findAll()).thenReturn(list);
 
-        phoneNumberServlet.doGet(mockRequest, mockResponse);
+        String response = mvc.perform(MockMvcRequestBuilders.get("/phone/all")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
-        Mockito.verify(mockPhoneNumberService).findById(Mockito.anyLong());
+        assertEquals(requestBody, response);
+    }
+
+
+    @Test
+    void doGetPhoneById() throws Exception {
+        Mockito.when(phoneNumberService.findById(phone.getId())).thenReturn(phoneOutGoingDto);
+
+        String response = mvc.perform(MockMvcRequestBuilders.get("/phone/2")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertEquals(requestBody, response);
+
     }
 
     @Test
-    void doGetNotFoundException() throws IOException, NotFoundException {
-        Mockito.doReturn("phone/100").when(mockRequest).getPathInfo();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockPhoneNumberService).findById(100L);
+    void doPost() throws Exception {
 
-        phoneNumberServlet.doGet(mockRequest, mockResponse);
+        Mockito.when(phoneNumberService.save(Mockito.any(PhoneIncomingDto.class),Mockito.anyLong())).thenReturn(phoneOutGoingDto);
 
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
+        String response = mvc.perform(MockMvcRequestBuilders.post("/phone/2")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals(requestBody, response);
     }
 
     @Test
-    void doGetBadRequest() throws IOException {
-        Mockito.doReturn("phone/2q").when(mockRequest).getPathInfo();
+    void doPutPhone() throws Exception {
 
-        phoneNumberServlet.doGet(mockRequest, mockResponse);
+        Mockito
+                .doNothing()
+                .when(phoneNumberService).update(Mockito.any(PhoneUpdateDto.class));
 
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        ObjectMapper objectMapper = new ObjectMapper();
+        requestBody = objectMapper.writeValueAsString(phoneOutGoingDto);
+
+
+        mvc.perform(MockMvcRequestBuilders.put("/phone/1")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void doDelete() throws IOException {
-        Mockito.doReturn("phone/2").when(mockRequest).getPathInfo();
-        Mockito.doReturn(true).when(mockPhoneNumberService).delete(Mockito.anyLong());
+    void doDeletePhone() throws Exception {
 
-        phoneNumberServlet.doDelete(mockRequest, mockResponse);
+        Mockito
+                .doNothing()
+                .when(phoneNumberService).delete(1L);
 
-        Mockito.verify(mockPhoneNumberService).delete(Mockito.anyLong());
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NO_CONTENT);
-    }
-
-    @Test
-    void doDeleteBadRequest() throws IOException {
-        Mockito.doReturn("phone/a100").when(mockRequest).getPathInfo();
-
-        phoneNumberServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doPost() throws IOException {
-        String expectedNumber = "+1 123 123 1234";
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"number\":\"" + expectedNumber + "\"}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        phoneNumberServlet.doPost(mockRequest, mockResponse);
-
-        ArgumentCaptor<PhoneIncomingDto> argumentCaptor = ArgumentCaptor.forClass(PhoneIncomingDto.class);
-        Mockito.verify(mockPhoneNumberService).save(argumentCaptor.capture());
-
-        PhoneIncomingDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedNumber, result.getNumber());
-    }
-
-    @Test
-    void doPut() throws NotFoundException, IOException {
-        String expectedNumber = "+1 123 123 1234";
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"id\": 4,\"number\": \"" +
-                expectedNumber + "\"}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        phoneNumberServlet.doPut(mockRequest, mockResponse);
-
-        ArgumentCaptor<PhoneUpdateDto> argumentCaptor = ArgumentCaptor.forClass(PhoneUpdateDto.class);
-        Mockito.verify(mockPhoneNumberService).update(argumentCaptor.capture());
-
-        PhoneUpdateDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedNumber, result.getNumber());
-
+        mvc.perform(MockMvcRequestBuilders.delete("/phone/1"))
+                .andExpect(status().isOk());
     }
 }

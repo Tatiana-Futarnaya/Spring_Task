@@ -3,29 +3,30 @@ package org.example.service.impl;
 import org.example.exception.NotFoundException;
 import org.example.model.Position;
 import org.example.repository.PositionRepository;
-import org.example.repository.impl.PositionRepositoryImpl;
 import org.example.service.PositionService;
 import org.example.servlet.dto.PositionIncomingDto;
 import org.example.servlet.dto.PositionOutGoingDto;
 import org.example.servlet.dto.PositionUpdateDto;
 import org.example.servlet.mapper.PositionDtoMapper;
-import org.example.servlet.mapper.impl.PositionDtoMapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Service
 public class PositionServiceImpl implements PositionService {
-    private final PositionRepository positionRepository = PositionRepositoryImpl.getInstance();
-    private final PositionDtoMapper positionDtoMapper = PositionDtoMapperImpl.getInstance();
-    private static PositionService instance;
+    private final PositionRepository positionRepository ;
+    private final PositionDtoMapper positionDtoMapper;
 
-    private PositionServiceImpl() {
-    }
 
-    public static synchronized PositionService getInstance() {
-        if (instance == null) {
-            instance = new PositionServiceImpl();
-        }
-        return instance;
+
+    @Autowired
+    public PositionServiceImpl(PositionRepository positionRepository, PositionDtoMapper positionDtoMapper) {
+        this.positionRepository = positionRepository;
+        this.positionDtoMapper = positionDtoMapper;
     }
 
     @Override
@@ -37,33 +38,34 @@ public class PositionServiceImpl implements PositionService {
 
     @Override
     public void update(PositionUpdateDto positionDto) throws NotFoundException {
-        checkPositionExist(positionDto.getId());
-        Position role = positionDtoMapper.map(positionDto);
-        positionRepository.update(role);
+        positionRepository.findById(positionDto.getId()).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Position Not Found"));
+        Position position = positionDtoMapper.map(positionDto);
+        positionRepository.save(position);
     }
 
     @Override
     public PositionOutGoingDto findById(Long positionId) throws NotFoundException {
         Position position = positionRepository.findById(positionId).orElseThrow(() ->
-                new NotFoundException("Position not found."));
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Position Not Found"));
         return positionDtoMapper.map(position);
     }
 
     @Override
     public List<PositionOutGoingDto> findAll() {
-        List<Position> positionList = positionRepository.findAll();
-        return positionDtoMapper.map(positionList);
+        List<Position> positions = positionRepository.findAll();
+
+        return positions.stream()
+                .map(position -> positionDtoMapper.map(position))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public boolean delete(Long positionId) throws NotFoundException {
-        checkPositionExist(positionId);
-        return positionRepository.deleteById(positionId);
+    public void delete(Long positionId) throws NotFoundException {
+        positionRepository.findById(positionId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Author Not Found"));
+        positionRepository.deleteById(positionId);
     }
 
-    private void checkPositionExist(Long positionId) throws NotFoundException {
-        if (!positionRepository.exitsById(positionId)) {
-            throw new NotFoundException("Position not found.");
-        }
-    }
+
 }

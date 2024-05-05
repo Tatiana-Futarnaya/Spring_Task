@@ -7,6 +7,7 @@ import org.example.servlet.dto.PhoneIncomingDto;
 import org.example.servlet.dto.PhoneOutGoingDto;
 import org.example.servlet.dto.PhoneUpdateDto;
 import org.example.servlet.mapper.PhoneDtoMapper;
+import org.example.servlet.mapper.PhoneDtoMapperImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,7 @@ class PhoneDtoMapperImplTest {
 
     @BeforeEach
     void setUp() {
-        phoneNumberDtoMapper = PhoneDtoMapperImpl.getInstance();
+        phoneNumberDtoMapper =new PhoneDtoMapperImpl();
     }
 
     @DisplayName("Phone map(PhoneIncomingDto")

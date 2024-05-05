@@ -3,69 +3,75 @@ package org.example.service.impl;
 import org.example.exception.NotFoundException;
 import org.example.model.Employee;
 import org.example.repository.EmployeeRepository;
-import org.example.repository.impl.EmployeeRepositoryImpl;
 import org.example.service.EmployeeService;
 import org.example.servlet.dto.EmployeeIncomingDto;
 import org.example.servlet.dto.EmployeeOutGoingDto;
 import org.example.servlet.dto.EmployeeUpdateDto;
 import org.example.servlet.mapper.EmployeeDtoMapper;
-import org.example.servlet.mapper.impl.EmployeeDtoMapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Service
 public class EmployeeServiceImpl implements EmployeeService {
-    private final EmployeeRepository employeeRepository = EmployeeRepositoryImpl.getInstance();
-    private final EmployeeDtoMapper employeeDtoMapper = EmployeeDtoMapperImpl.getInstance();
-    private static EmployeeService instance;
+    private  EmployeeRepository employeeRepository;
+    private EmployeeDtoMapper employeeDtoMapper;
 
-
-    private EmployeeServiceImpl() {
+    @Autowired
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, EmployeeDtoMapper employeeDtoMapper) {
+        this.employeeRepository = employeeRepository;
+        this.employeeDtoMapper = employeeDtoMapper;
     }
 
-    public static synchronized EmployeeService getInstance() {
-        if (instance == null) {
-            instance = new EmployeeServiceImpl();
-        }
-        return instance;
-    }
 
-    private void checkExistEmployee(Long employeeId) throws NotFoundException {
-        if (!employeeRepository.exitsById(employeeId)) {
-            throw new NotFoundException("Employee not found.");
-        }
-    }
 
     @Override
     public EmployeeOutGoingDto save(EmployeeIncomingDto employeeDto) {
-        Employee employee = employeeRepository.save(employeeDtoMapper.map(employeeDto));
-        return employeeDtoMapper.map(employeeRepository.findById(employee.getId()).orElse(employee));
+        Employee employee = employeeDtoMapper.map(employeeDto);
+        employee = employeeRepository.save(employee);
+        return employeeDtoMapper.map(employee);
     }
 
     @Override
-    public void update(EmployeeUpdateDto employeeDto) throws NotFoundException {
-        if (employeeDto == null || employeeDto.getId() == null) {
-            throw new IllegalArgumentException();
-        }
-        checkExistEmployee(employeeDto.getId());
-        employeeRepository.update(employeeDtoMapper.map(employeeDto));
+    public EmployeeOutGoingDto updateEmployee(EmployeeUpdateDto employeeDto) throws NotFoundException {
+        Employee updateEmployee=employeeDtoMapper.map(employeeDto);
+
+        Employee oldEmployee = employeeRepository.findById(updateEmployee.getId()).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee Not Found"));
+
+        updateEmployee.setPosition(oldEmployee.getPosition());
+        updateEmployee.setPhoneNumberList(oldEmployee.getPhoneNumberList());
+        updateEmployee.setDepartmentList(oldEmployee.getDepartmentList());
+
+        employeeRepository.save(updateEmployee);
+
+        return employeeDtoMapper.map(updateEmployee);
     }
 
     @Override
     public EmployeeOutGoingDto findById(Long employeeId) throws NotFoundException {
-        checkExistEmployee(employeeId);
-        Employee employee = employeeRepository.findById(employeeId).orElseThrow();
+        Employee employee = employeeRepository.findById(employeeId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee Not Found"));
+
         return employeeDtoMapper.map(employee);
     }
 
     @Override
     public List<EmployeeOutGoingDto> findAll() {
         List<Employee> all = employeeRepository.findAll();
-        return employeeDtoMapper.map(all);
+        return all.stream()
+                .map(employee -> employeeDtoMapper.map(employee))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public void delete(Long employeeId) throws NotFoundException {
-        checkExistEmployee(employeeId);
-        employeeRepository.deleteById(employeeId);
+    public void delete(Long positionId) throws NotFoundException {
+        employeeRepository.findById(positionId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee Not Found"));
+        employeeRepository.deleteById(positionId);
     }
 }

@@ -5,6 +5,7 @@ import org.example.servlet.dto.PositionIncomingDto;
 import org.example.servlet.dto.PositionOutGoingDto;
 import org.example.servlet.dto.PositionUpdateDto;
 import org.example.servlet.mapper.PositionDtoMapper;
+import org.example.servlet.mapper.PositionDtoMapperImpl;
 import org.junit.jupiter.api.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ class PositionDtoMapperImplTest {
 
     @BeforeEach
     void setUp() {
-        positionDtoMapper = PositionDtoMapperImpl.getInstance();
+        positionDtoMapper =new PositionDtoMapperImpl();
     }
 
     @DisplayName("Position map(PositionIncomingDto)")

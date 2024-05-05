@@ -1,21 +1,35 @@
 package org.example.model;
 
-import org.example.repository.PhoneRepository;
-import org.example.repository.EmployeeToDepartmentRepository;
-import org.example.repository.impl.PhoneRepositoryImpl;
-import org.example.repository.impl.EmployeeToDepartmentRepositoryImpl;
+import jakarta.persistence.*;
+import org.apache.catalina.User;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
+import java.awt.print.Book;
+import java.util.ArrayList;
 import java.util.List;
 
-
+@Entity
+@Table(name="employee")
 public class Employee {
-    private static final PhoneRepository phoneNumberRepository = PhoneRepositoryImpl.getInstance();
-    private static final EmployeeToDepartmentRepository employeeToDepartmentRepository = EmployeeToDepartmentRepositoryImpl.getInstance();
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(nullable = false)
     private String employeeFirstName;
+    @Column(nullable = false)
     private String employeeLastName;
+    @ManyToOne(fetch = FetchType.EAGER,cascade =  { CascadeType.REFRESH} )
+    @JoinColumn(name="position_id", referencedColumnName = "id")
     private Position position;
+    @OneToMany(mappedBy = "employee",fetch = FetchType.EAGER,orphanRemoval = true,
+            cascade= {CascadeType.ALL})
+    @Fetch(value = FetchMode.SUBSELECT)
     private List<Phone> phoneNumberList;
+    @ManyToMany(cascade = { CascadeType.REFRESH}, fetch = FetchType.EAGER)
+    @Fetch(value = FetchMode.SUBSELECT)
+    @JoinTable(name = "employee_departments", joinColumns = @JoinColumn(name = "employee_id",referencedColumnName = "id"),
+            inverseJoinColumns=@JoinColumn(name = "department_id",referencedColumnName = "id"))
     private List<Department> departmentList;
 
     public Employee() {
@@ -30,8 +44,19 @@ public class Employee {
         this.departmentList = departmentList;
     }
 
+    public Employee(Long id, String employeeFirstName, String employeeLastName, Position position) {
+        this.id = id;
+        this.employeeFirstName = employeeFirstName;
+        this.employeeLastName = employeeLastName;
+        this.position = position;
+    }
+
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getEmployeeFirstName() {
@@ -59,22 +84,17 @@ public class Employee {
     }
 
     public List<Phone> getPhoneNumberList() {
-        if (phoneNumberList == null) {
-            this.phoneNumberList = phoneNumberRepository.findAllByEmployeeId(this.id);
-        }
         return phoneNumberList;
+    }
+
+    public List<Department> getDepartmentList() {
+        return departmentList;
     }
 
     public void setPhoneNumberList(List<Phone> phoneNumberList) {
         this.phoneNumberList = phoneNumberList;
     }
 
-    public List<Department> getDepartmentList() {
-        if (departmentList == null) {
-            departmentList = employeeToDepartmentRepository.findDepartmentsByEmployeeId(this.id);
-        }
-        return departmentList;
-    }
 
     public void setDepartmentList(List<Department> departmentList) {
         this.departmentList = departmentList;
@@ -84,8 +104,8 @@ public class Employee {
     public String toString() {
         return "Employee{" +
                 "id=" + id +
-                ", employee_firstName='" + employeeFirstName + '\'' +
-                ", employee_lastName='" + employeeLastName + '\'' +
+                ", employeeFirstName='" + employeeFirstName + '\'' +
+                ", employeeLastName='" + employeeLastName + '\'' +
                 ", position=" + position +
                 ", phoneNumberList=" + phoneNumberList +
                 ", departmentList=" + departmentList +

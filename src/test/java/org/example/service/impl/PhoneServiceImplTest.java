@@ -1,66 +1,65 @@
 package org.example.service.impl;
 
 import org.example.exception.NotFoundException;
-
+import org.example.model.Employee;
 import org.example.model.Phone;
+import org.example.model.Position;
+import org.example.repository.EmployeeRepository;
 import org.example.repository.PhoneRepository;
-import org.example.repository.impl.PhoneRepositoryImpl;
-import org.example.service.PhoneService;
-import org.example.servlet.dto.PhoneIncomingDto;
-import org.example.servlet.dto.PhoneOutGoingDto;
-import org.example.servlet.dto.PhoneUpdateDto;
+import org.example.servlet.dto.*;
+import org.example.servlet.mapper.PhoneDtoMapper;
 import org.junit.jupiter.api.*;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+
+
+@ExtendWith(MockitoExtension.class)
 class PhoneServiceImplTest {
-    private static PhoneService phoneNumberService;
-    private static PhoneRepository mockitoPhoneNumberRepository;
-    private static PhoneRepositoryImpl oldInstance;
+    @InjectMocks
+    private  PhoneServiceImpl phoneNumberService;
+    @Mock
+    private  PhoneRepository mockitoPhoneNumberRepository;
+    @Mock
+    private PhoneDtoMapper phoneDtoMapper;
+    @Mock
+    private EmployeeRepository employeeRepository;
+    @Mock
+    private Position position;
 
-    private static void setMock(PhoneRepository mock) {
-        try {
-            Field instance = PhoneRepositoryImpl.class.getDeclaredField("instance");
-            instance.setAccessible(true);
-            oldInstance = (PhoneRepositoryImpl) instance.get(instance);
-            instance.set(instance, mock);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @BeforeAll
-    static void beforeAll() {
-        mockitoPhoneNumberRepository = Mockito.mock(PhoneRepository.class);
-        setMock(mockitoPhoneNumberRepository);
-        phoneNumberService = PhoneServiceImpl.getInstance();
-    }
-
-    @AfterAll
-    static void afterAll() throws Exception {
-        Field instance = PhoneRepositoryImpl.class.getDeclaredField("instance");
-        instance.setAccessible(true);
-        instance.set(instance, oldInstance);
-    }
-
-    @BeforeEach
-    void setUp() {
-        Mockito.reset(mockitoPhoneNumberRepository);
-    }
 
     @Test
     void save() {
         Long expectedId = 1L;
+        final long phoneId = 1L;
 
         PhoneIncomingDto dto = new PhoneIncomingDto("+123 123 1111");
         Phone phoneNumber = new Phone(expectedId, "+123 123 1111", null);
+        PhoneOutGoingDto phoneOutGoingDto=new PhoneOutGoingDto(expectedId, "+123 123 1111", null);
+        final Employee employee = new Employee(expectedId, "f1 name", "l1 name", position, List.of(), List.of());
+        final Optional<Employee> optional = Optional.of(employee);
+        phoneNumber.setEmployee(employee);
 
-        Mockito.doReturn(phoneNumber).when(mockitoPhoneNumberRepository).save(Mockito.any(Phone.class));
 
-        PhoneOutGoingDto result = phoneNumberService.save(dto);
+        Mockito.when(mockitoPhoneNumberRepository.save(Mockito.any(Phone.class))).thenReturn(phoneNumber);
+        Mockito
+                .doReturn(optional)
+                .when(employeeRepository).findById(1L);
+        Mockito
+                .doReturn(phoneOutGoingDto)
+                .when(phoneDtoMapper).map(any(Phone.class));
+        Mockito.when(phoneDtoMapper.map(dto)).thenReturn(phoneNumber);
+
+        PhoneOutGoingDto result = phoneNumberService.save(dto,phoneId);
 
         Assertions.assertEquals(expectedId, result.getId());
     }
@@ -70,13 +69,20 @@ class PhoneServiceImplTest {
         Long expectedId = 1L;
 
         PhoneUpdateDto dto = new PhoneUpdateDto(expectedId, "+123 123 1111", null);
+        Phone phoneNumber = new Phone(expectedId, "+123 123 1111", null);
+        PhoneOutGoingDto phoneOutGoingDto=new PhoneOutGoingDto(expectedId, "+123 123 1111", null);
 
-        Mockito.doReturn(true).when(mockitoPhoneNumberRepository).exitsById(Mockito.any());
+        Mockito.when(mockitoPhoneNumberRepository.save(Mockito.any(Phone.class))).thenReturn(phoneNumber);
+        Mockito.when(phoneDtoMapper.map(dto)).thenReturn(phoneNumber);
+        Mockito.when(phoneDtoMapper.map(phoneNumber)).thenReturn(phoneOutGoingDto);
+        Mockito
+                .doReturn(Optional.of(phoneNumber))
+                .when(mockitoPhoneNumberRepository).findById(phoneNumber.getId());
 
         phoneNumberService.update(dto);
 
         ArgumentCaptor<Phone> argumentCaptor = ArgumentCaptor.forClass(Phone.class);
-        Mockito.verify(mockitoPhoneNumberRepository).update(argumentCaptor.capture());
+        Mockito.verify(mockitoPhoneNumberRepository).save(argumentCaptor.capture());
 
         Phone result = argumentCaptor.getValue();
         Assertions.assertEquals(expectedId, result.getId());
@@ -84,25 +90,34 @@ class PhoneServiceImplTest {
 
     @Test
     void updateNotFound() {
+        Long expectedId = 1L;
+
+        Phone phoneNumber = new Phone(expectedId, "+123 123 1111", null);
         PhoneUpdateDto dto = new PhoneUpdateDto(1L, "+123 123 1111", null);
 
-        Mockito.doReturn(false).when(mockitoPhoneNumberRepository).exitsById(Mockito.any());
+        Mockito
+                .when(mockitoPhoneNumberRepository.findById(phoneNumber.getId()))
+                .thenReturn(Optional.empty());
+        Mockito.when(phoneDtoMapper.map(dto)).thenReturn(phoneNumber);
 
-        NotFoundException exception = Assertions.assertThrows(
-                NotFoundException.class,
-                () -> phoneNumberService.update(dto), "Not found."
-        );
-        Assertions.assertEquals("PhoneNumber not found.", exception.getMessage());
+
+        ResponseStatusException e  = assertThrows(ResponseStatusException.class,
+                () -> phoneNumberService.update(dto));
+
+        assertThat(e.getMessage(), equalTo("404 NOT_FOUND \"Phone Not Found\""));
+        Mockito.verify(mockitoPhoneNumberRepository, Mockito.times(1))
+                .findById(phoneNumber.getId());
     }
 
     @Test
     void findById() throws NotFoundException {
         Long expectedId = 1L;
 
-        Optional<Phone> role = Optional.of(new Phone(expectedId, "+123 123 1111", null));
+        Optional<Phone> phone = Optional.of(new Phone(expectedId, "+123 123 1111", null));
+        PhoneOutGoingDto phoneOutGoingDto=new PhoneOutGoingDto(expectedId, "+123 123 1111", null);
 
-        Mockito.doReturn(true).when(mockitoPhoneNumberRepository).exitsById(Mockito.any());
-        Mockito.doReturn(role).when(mockitoPhoneNumberRepository).findById(Mockito.anyLong());
+        Mockito.doReturn(phone).when(mockitoPhoneNumberRepository).findById(Mockito.anyLong());
+        Mockito.when(phoneDtoMapper.map(phone.get())).thenReturn(phoneOutGoingDto);
 
         PhoneOutGoingDto dto = phoneNumberService.findById(expectedId);
 
@@ -111,13 +126,12 @@ class PhoneServiceImplTest {
 
     @Test
     void findByIdNotFound() {
-        Mockito.doReturn(false).when(mockitoPhoneNumberRepository).exitsById(Mockito.any());
+        ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> phoneNumberService.findById(1L));
 
-        NotFoundException exception = Assertions.assertThrows(
-                NotFoundException.class,
-                () -> phoneNumberService.findById(1L), "Not found."
-        );
-        Assertions.assertEquals("PhoneNumber not found.", exception.getMessage());
+        assertThat(e.getMessage(), equalTo("404 NOT_FOUND \"Phone Not Found\""));
+        Mockito.verify(mockitoPhoneNumberRepository, Mockito.times(1))
+                .findById(1L);
     }
 
     @Test
@@ -128,7 +142,13 @@ class PhoneServiceImplTest {
 
     @Test
     void delete() {
-        Long expectedId = 100L;
+        Long expectedId = 1L;
+
+        Phone phoneNumber = new Phone(expectedId, "+123 123 1111", null);
+
+        Mockito
+                .doReturn(Optional.of(phoneNumber))
+                .when(mockitoPhoneNumberRepository).findById(phoneNumber.getId());
 
         phoneNumberService.delete(expectedId);
 

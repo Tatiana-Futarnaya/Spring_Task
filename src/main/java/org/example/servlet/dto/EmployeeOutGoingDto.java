@@ -1,5 +1,7 @@
 package org.example.servlet.dto;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.List;
 
 public class EmployeeOutGoingDto {
@@ -11,8 +13,10 @@ public class EmployeeOutGoingDto {
     private List<PhoneOutGoingDto> phoneNumberList;
     private List<DepartmentOutGoingDto> departmentList;
 
+
     public EmployeeOutGoingDto() {
     }
+
 
     public EmployeeOutGoingDto(Long id, String firstName, String lastName, PositionOutGoingDto position, List<PhoneOutGoingDto> phoneNumberList, List<DepartmentOutGoingDto> departmentList) {
         this.id = id;
@@ -47,5 +51,30 @@ public class EmployeeOutGoingDto {
     public List<DepartmentOutGoingDto> getDepartmentList() {
         return departmentList;
     }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setPosition(PositionOutGoingDto position) {
+        this.position = position;
+    }
+
+    public void setPhoneNumberList(List<PhoneOutGoingDto> phoneNumberList) {
+        this.phoneNumberList = phoneNumberList;
+    }
+
+    public void setDepartmentList(List<DepartmentOutGoingDto> departmentList) {
+        this.departmentList = departmentList;
+    }
+
 
 }

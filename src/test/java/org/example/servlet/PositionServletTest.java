@@ -1,221 +1,145 @@
 package org.example.servlet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.example.exception.NotFoundException;
+import org.example.model.Employee;
+import org.example.model.Position;
 import org.example.service.PositionService;
 import org.example.service.impl.PositionServiceImpl;
-import org.example.servlet.dto.PositionIncomingDto;
-import org.example.servlet.dto.PositionUpdateDto;
+import org.example.servlet.dto.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-@ExtendWith(
-        MockitoExtension.class
-)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(MockitoExtension.class)
 class PositionServletTest {
-    private static PositionService mockPositionService;
+    @Mock
+    private PositionService positionService;
+    @Spy
     @InjectMocks
-    private static PositionServlet positionServlet;
-    private static PositionServiceImpl oldInstance;
+    private  PositionServlet positionServlet;
     @Mock
-    private HttpServletRequest mockRequest;
+    private MockMvc mvc;
+    private String requestBody;
     @Mock
-    private HttpServletResponse mockResponse;
+    private PositionOutGoingDto positionOutGoingDto;
     @Mock
-    private BufferedReader mockBufferedReader;
+    private Position position;
 
-    private static void setMock(PositionService mock) {
-        try {
-            Field instance = PositionServiceImpl.class.getDeclaredField("instance");
-            instance.setAccessible(true);
-            oldInstance = (PositionServiceImpl) instance.get(instance);
-            instance.set(instance, mock);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @BeforeAll
-    static void beforeAll() {
-        mockPositionService = Mockito.mock(PositionService.class);
-        setMock(mockPositionService);
-        positionServlet = new PositionServlet();
-    }
-
-    @AfterAll
-    static void afterAll() throws Exception {
-        Field instance = PositionServiceImpl.class.getDeclaredField("instance");
-        instance.setAccessible(true);
-        instance.set(instance, oldInstance);
-    }
 
     @BeforeEach
-    void setUp() throws IOException {
-        Mockito.doReturn(new PrintWriter(Writer.nullWriter())).when(mockResponse).getWriter();
+    void setUp() {
+
+        mvc = MockMvcBuilders
+                .standaloneSetup(positionServlet)
+                .build();
+
+        position=new Position(4L,"Admin");
+        positionOutGoingDto=new PositionOutGoingDto(4L,"Admin");
+
+        requestBody="{\"id\":4,\"name\":\"Admin\"}";
+
     }
 
-    @AfterEach
-    void tearDown() {
-        Mockito.reset(mockPositionService);
+
+    @Test
+    void doGetAll() throws Exception {
+        requestBody = "[" + requestBody + "]";
+        List<PositionOutGoingDto> list=List.of(positionOutGoingDto);
+
+        Mockito.when(positionService.findAll()).thenReturn(list);
+
+        String response = mvc.perform(MockMvcRequestBuilders.get("/position/all")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals(requestBody, response);
     }
 
     @Test
-    void doGetAll() throws IOException {
-        Mockito.doReturn("position/all").when(mockRequest).getPathInfo();
+    void doGetPositionById() throws Exception {
+        Mockito.when(positionService.findById(position.getId())).thenReturn(positionOutGoingDto);
 
-        positionServlet.doGet(mockRequest, mockResponse);
+        String response = mvc.perform(MockMvcRequestBuilders.get("/position/4")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertEquals(requestBody, response);
 
-        Mockito.verify(mockPositionService).findAll();
     }
 
     @Test
-    void doGetById() throws IOException, NotFoundException {
-        Mockito.doReturn("position/2").when(mockRequest).getPathInfo();
+    void doPost() throws Exception {
 
-        positionServlet.doGet(mockRequest, mockResponse);
+        Mockito.when(positionService.save(Mockito.any(PositionIncomingDto.class))).thenReturn(positionOutGoingDto);
 
-        Mockito.verify(mockPositionService).findById(Mockito.anyLong());
+        String response = mvc.perform(MockMvcRequestBuilders.post("/position/")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON_VALUE)
+                        .characterEncoding(StandardCharsets.UTF_8))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertEquals(requestBody, response);
     }
 
     @Test
-    void doGetNotFoundException() throws IOException, NotFoundException {
-        Mockito.doReturn("position/100").when(mockRequest).getPathInfo();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockPositionService).findById(100L);
+    void doPutPosition() throws Exception {
 
-        positionServlet.doGet(mockRequest, mockResponse);
+        Mockito
+                .doNothing()
+                .when(positionService).update(Mockito.any(PositionUpdateDto.class));
 
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
+        ObjectMapper objectMapper = new ObjectMapper();
+        requestBody = objectMapper.writeValueAsString(positionOutGoingDto);
+
+
+        mvc.perform(MockMvcRequestBuilders.put("/position/1")
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
     }
 
     @Test
-    void doGetBadRequest() throws IOException {
-        Mockito.doReturn("position/2q").when(mockRequest).getPathInfo();
+    void doDeletePosition() throws Exception {
 
-        positionServlet.doGet(mockRequest, mockResponse);
+        Mockito
+                .doNothing()
+                .when(positionService).delete(1L);
 
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doDelete() throws IOException, NotFoundException {
-        Mockito.doReturn("position/2").when(mockRequest).getPathInfo();
-        Mockito.doReturn(true).when(mockPositionService).delete(Mockito.anyLong());
-
-        positionServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockPositionService).delete(Mockito.anyLong());
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NO_CONTENT);
-    }
-
-    @Test
-    void doDeleteNotFound() throws IOException, NotFoundException {
-        Mockito.doReturn("position/100").when(mockRequest).getPathInfo();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockPositionService).delete(100L);
-
-        positionServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
-        Mockito.verify(mockPositionService).delete(Mockito.anyLong());
-    }
-
-    @Test
-    void doDeleteBadRequest() throws IOException {
-        Mockito.doReturn("position/a100").when(mockRequest).getPathInfo();
-
-        positionServlet.doDelete(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doPost() throws IOException {
-        String expectedName = "New position Admin";
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"name\":\"" + expectedName + "\"}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        positionServlet.doPost(mockRequest, mockResponse);
-
-        ArgumentCaptor<PositionIncomingDto> argumentCaptor = ArgumentCaptor.forClass(PositionIncomingDto.class);
-        Mockito.verify(mockPositionService).save(argumentCaptor.capture());
-
-        PositionIncomingDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedName, result.getName());
-    }
-
-    @Test
-    void doPostBadRequest() throws IOException {
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"id\":1}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        positionServlet.doPost(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doPut() throws IOException, NotFoundException {
-        String expectedName = "Update position Admin";
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"id\": 4,\"name\": \"" +
-                expectedName + "\"}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        positionServlet.doPut(mockRequest, mockResponse);
-
-        ArgumentCaptor<PositionUpdateDto> argumentCaptor = ArgumentCaptor.forClass(PositionUpdateDto.class);
-        Mockito.verify(mockPositionService).update(argumentCaptor.capture());
-
-        PositionUpdateDto result = argumentCaptor.getValue();
-        Assertions.assertEquals(expectedName, result.getName());
-    }
-
-    @Test
-    void doPutBadRequest() throws IOException {
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{Bad json:1}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-
-        positionServlet.doPut(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    @Test
-    void doPutNotFound() throws IOException, NotFoundException {
-        Mockito.doReturn(mockBufferedReader).when(mockRequest).getReader();
-        Mockito.doReturn(
-                "{\"id\": 4,\"name\": \"Admin\"}",
-                (Object) null
-        ).when(mockBufferedReader).readLine();
-        Mockito.doThrow(new NotFoundException("not found")).when(mockPositionService)
-                .update(Mockito.any(PositionUpdateDto.class));
-
-        positionServlet.doPut(mockRequest, mockResponse);
-
-        Mockito.verify(mockResponse).setStatus(HttpServletResponse.SC_NOT_FOUND);
-        Mockito.verify(mockPositionService).update(Mockito.any(PositionUpdateDto.class));
+        mvc.perform(MockMvcRequestBuilders.delete("/position/1"))
+                .andExpect(status().isOk());
     }
 
 }

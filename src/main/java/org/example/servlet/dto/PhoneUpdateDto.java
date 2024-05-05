@@ -27,4 +27,15 @@ public class PhoneUpdateDto {
         return employeeId;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setNumber(String number) {
+        this.number = number;
+    }
+
+    public void setEmployeeId(Long employeeId) {
+        this.employeeId = employeeId;
+    }
 }

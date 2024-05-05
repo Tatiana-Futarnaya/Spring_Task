@@ -1,15 +1,23 @@
 package org.example.model;
 
-import org.example.repository.EmployeeToDepartmentRepository;
-import org.example.repository.impl.EmployeeToDepartmentRepositoryImpl;
+import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.util.List;
 
-
+@Entity
+@Table(name = "departments")
 public class Department {
-    private static final EmployeeToDepartmentRepository employeeToDepartmentRepository = EmployeeToDepartmentRepositoryImpl.getInstance();
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(nullable = false)
     private String name;
+    @ManyToMany(cascade = {CascadeType.MERGE, CascadeType.REFRESH}, fetch = FetchType.EAGER)
+    @Fetch(value = FetchMode.SUBSELECT)
+    @JoinTable(name = "employee_departments", joinColumns = @JoinColumn(name = "employee_id",referencedColumnName = "id"),
+            inverseJoinColumns=@JoinColumn(name = "department_id",referencedColumnName = "id"))
     private List<Employee> employeeList;
 
     public Department() {
@@ -34,19 +42,22 @@ public class Department {
     }
 
     public List<Employee> getEmployeeList() {
-        if (employeeList == null) {
-            employeeList = employeeToDepartmentRepository.findEmployeesByDepartmentId(this.id);
-        }
         return employeeList;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setEmployeeList(List<Employee> employeeList) {
+        this.employeeList = employeeList;
+    }
 
     @Override
     public String toString() {
         return "Department{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
-                ", employeeList=" + employeeList +
                 '}';
     }
 }
